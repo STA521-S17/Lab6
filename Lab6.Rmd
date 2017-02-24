@@ -34,7 +34,8 @@ betatrue = c(4,2,0,0,0,-1,0,1.5, 0,0,0,1,0,.5,0,0,0,0,-1,1,4)
 ### Generate Data
 
 We are now going to generate an 100  X matrices with correlated columns
-```{r datasets} 
+```{r datasets, cache=TRUE} 
+set.seed(42)
 #sample size
 n = 50
 
@@ -49,8 +50,10 @@ for (i in 1:100) {
   
 #  Create X1 by taking linear cominations of Z to induce correlation among X1 components
   
-  X1 = cbind(Z, (Z[,1:5] %*% c(.3, .5, .7, .9, 1.1) %*% t(rep(1,5)) +
-             matrix(rnorm(n*5, 0, 1), ncol=5, nrow=n)))
+  X1 = cbind(Z, 
+             (Z[,1:5] %*% c(.3, .5, .7, .9, 1.1) %*% t(rep(1,5)) +
+             matrix(rnorm(n*5, 0, 1), ncol=5, nrow=n))
+             )
 # generate X2 as a standard normal  
   X2 <- matrix(rnorm(n*4,0,1), ncol=4, nrow=n)
   
@@ -61,8 +64,8 @@ for (i in 1:100) {
   X <- cbind(X1,X2,X3)
   
 # subtract off the column means
-  X = sweep(X, 2, apply(X,2, mean)) 
-
+  X = sweep(X, 2, apply(X,2, mean), FUN="-") 
+#  also see scale()
 # Generate mu     
 # X does not have a column of ones for the intercept so need to add the intercept  
 # for true mu  
@@ -85,14 +88,14 @@ for (i in 1:100) {
 Let's see how well we do at estimating the true $\beta$s
 
 ```{r MSE-OLS}
-MSE.OLS  = rep(0,100)
+MSE.OLS  = rep(NA,100)
 
 for( i in 1:100) {
   rm(df)
   load(fname[i])
   nk.ols = lm(Y ~ . -mu, data=df)
   coef.ols = coef(nk.ols)
-  MSE.OLS[i] = sum((betatrue - coef.ols)^2)
+  MSE.OLS[i] = mean((betatrue - coef.ols)^2)
 #  print(c(i, MSE.OLS[i]))
 }
 
@@ -103,7 +106,7 @@ mean(MSE.OLS)
 While a single number summary is great, how much variation is there across simulations?  What is the worse behaviour?
 
 ```{r}
-hist(MSE.OLS)
+hist(sqrt(MSE.OLS))
 ```
 
 ### Other estimators
@@ -117,7 +120,7 @@ Besides OLS for the "full model" we could use stepwise selection or other method
 2. Use stepwise selection with AIC and BIC for the simulated data and evaluate the loss for estimating $\beta$ and estimating $\mu$
 
 3.  What if the loss function is 0 if you do not pick the true model but -1 if you do choose the correct model.
-Write a function to evaluate this loss and then use this with different model selection methods (i.e stepwise wit AIC and  BIC)
+Write a function to evaluate this loss and then use this with different model selection methods (i.e stepwise with AIC and  BIC)
 
 
 
