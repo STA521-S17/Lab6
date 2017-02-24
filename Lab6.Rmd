@@ -1,0 +1,128 @@
+---
+title: "Simulation Studies"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Fake data simulation plays an important role in determining how well different model selection methods work in practice and complement Cross-Validation.  Because we know the true data mechanism,  we can look at how well various procedures can capture the "truth".
+
+We will generate data according to a model from a simulation study in a paper by Nott & Kohn.
+
+First let's set our random seed in case we need to rerun parts later.
+
+```{r jenny, echo=TRUE}
+# set the random seed so that we can replicate results.
+set.seed(8675309)
+```
+
+### True parameters
+
+In order to simulate data, we need to specify the values of the  "true" parameters.  For this study we will use
+
+```{r true}
+# true parameters
+sigma = 2.5
+betatrue = c(4,2,0,0,0,-1,0,1.5, 0,0,0,1,0,.5,0,0,0,0,-1,1,4)
+#          int|    X1                            | X2     |X3          
+```
+
+
+
+### Generate Data
+
+We are now going to generate an 100  X matrices with correlated columns
+```{r datasets} 
+#sample size
+n = 50
+
+# part of dataframe name
+fname=rep("df",100)
+
+# create 100 datasets
+for (i in 1:100) {
+  
+# generate some satandard normals
+  Z = matrix(rnorm(n*10, 0, 1), ncol=10, nrow=n)
+  
+#  Create X1 by taking linear cominations of Z to induce correlation among X1 components
+  
+  X1 = cbind(Z, (Z[,1:5] %*% c(.3, .5, .7, .9, 1.1) %*% t(rep(1,5)) +
+             matrix(rnorm(n*5, 0, 1), ncol=5, nrow=n)))
+# generate X2 as a standard normal  
+  X2 <- matrix(rnorm(n*4,0,1), ncol=4, nrow=n)
+  
+# Generate X3 as a linear combination of X2 and noise  
+  X3 <- X2[,4]+rnorm(n,0,sd=0.1)
+  
+# combine them  
+  X <- cbind(X1,X2,X3)
+  
+# subtract off the column means
+  X = sweep(X, 2, apply(X,2, mean)) 
+
+# Generate mu     
+# X does not have a column of ones for the intercept so need to add the intercept  
+# for true mu  
+  mu = betatrue[1] + X %*% betatrue[-1] 
+  
+# now generate Y  
+  Y = mu + rnorm(n,0,sigma)  
+  
+# make a dataframe and save it
+  df = data.frame(Y, X, mu)
+  fname[i] = paste("df", as.character(i), sep="")
+  save(df, file=fname[i])
+}
+```
+
+
+
+### Estimation
+
+Let's see how well we do at estimating the true $\beta$s
+
+```{r MSE-OLS}
+MSE.OLS  = rep(0,100)
+
+for( i in 1:100) {
+  rm(df)
+  load(fname[i])
+  nk.ols = lm(Y ~ . -mu, data=df)
+  coef.ols = coef(nk.ols)
+  MSE.OLS[i] = sum((betatrue - coef.ols)^2)
+#  print(c(i, MSE.OLS[i]))
+}
+
+#  mean squared error loss for estimating beta
+mean(MSE.OLS)
+```
+
+While a single number summary is great, how much variation is there across simulations?  What is the worse behaviour?
+
+```{r}
+hist(MSE.OLS)
+```
+
+### Other estimators
+
+Besides OLS for the "full model" we could use stepwise selection or other methods or look at other loss functions for estimating the mean or prediction.
+
+## To do individually/teams  (will be part of HW)
+
+1.  What happens if you change the "loss function" so instead of  MSE for $\beta$ it is MSE for estimating $\mu = X \beta$  with OLS?  (write a function for evaluating this loss)
+
+2. Use stepwise selection with AIC and BIC for the simulated data and evaluate the loss for estimating $\beta$ and estimating $\mu$
+
+3.  What if the loss function is 0 if you do not pick the true model but -1 if you do choose the correct model.
+Write a function to evaluate this loss and then use this with different model selection methods (i.e stepwise wit AIC and  BIC)
+
+
+
+
+
+
+
+
